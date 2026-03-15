@@ -1,10 +1,25 @@
 import os
+import threading
+from flask import Flask
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
 from telethon.tl.functions.messages import CreateChatRequest, ExportChatInviteRequest
 
 load_dotenv()
 
+# --- 1. HTTP SERVER PARA SA BACK4APP HEALTH CHECK ---
+app = Flask(__name__)
+
+@app.route('/')
+def health_check():
+    return "Bot is running!", 200
+
+def run_http_server():
+    # Kukunin ang port mula sa environment, default ay 8080
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+
+# --- 2. ORIGINAL BOT LOGIC ---
 API_ID = int(os.getenv('API_ID'))
 API_HASH = os.getenv('API_HASH')
 AUTHORIZED_USER_ID = int(os.getenv('AUTHORIZED_USER_ID'))
@@ -68,6 +83,12 @@ async def create_group(event):
     except Exception as e:
         await status_msg.edit(f"⚠️ **Error:** `{str(e)}`")
 
-print("TeleForge is running. DMs enabled.")
-client.start()
-client.run_until_disconnected()
+# --- 3. RUNNING THE BOT AND SERVER ---
+if __name__ == '__main__':
+    # Patatakbuhin ang Flask sa background thread
+    threading.Thread(target=run_http_server, daemon=True).start()
+    
+    print("HTTP Server started on port 8080. TeleForge is starting...")
+    
+    client.start()
+    client.run_until_disconnected()
